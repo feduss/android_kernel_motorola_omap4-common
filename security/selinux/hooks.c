@@ -1449,7 +1449,8 @@ static int cred_has_capability(const struct cred *cred,
 	int rc;
 
 	COMMON_AUDIT_DATA_INIT(&ad, CAP);
-	ad.selinux_audit_data = &sad;
+
+	//ad.selinux_audit_data = &sad;
 	ad.tsk = current;
 	ad.u.cap = cap;
 
