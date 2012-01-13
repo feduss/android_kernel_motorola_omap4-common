@@ -113,7 +113,6 @@
 # define PR_SET_MM_START_STACK		5
 # define PR_SET_MM_START_BRK		6
 # define PR_SET_MM_BRK			7
-
 /*
  * Set specific pid that is allowed to ptrace the current task.
  * A value of 0 mean "no process".
@@ -154,5 +153,4 @@
 # define PR_CAP_AMBIENT_RAISE		2
 # define PR_CAP_AMBIENT_LOWER		3
 # define PR_CAP_AMBIENT_CLEAR_ALL	4
-
 #endif /* _LINUX_PRCTL_H */
