@@ -726,6 +726,7 @@ void ion_client_destroy(struct ion_client *client)
 
 	kfree(client);
 }
+EXPORT_SYMBOL(ion_client_destroy);
 
 struct sg_table *ion_sg_table(struct ion_client *client,
 			      struct ion_handle *handle)
@@ -745,6 +746,7 @@ struct sg_table *ion_sg_table(struct ion_client *client,
 	mutex_unlock(&client->lock);
 	return table;
 }
+EXPORT_SYMBOL(ion_sg_table);
 
 static void ion_buffer_sync_for_device(struct ion_buffer *buffer,
 				       struct device *dev,
@@ -765,7 +767,6 @@ static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
 			      enum dma_data_direction direction)
 {
 }
-EXPORT_SYMBOL(ion_client_destroy);
 
 static int ion_buffer_alloc_dirty(struct ion_buffer *buffer)
 {
@@ -997,6 +998,7 @@ int ion_share_dma_buf(struct ion_client *client, struct ion_handle *handle)
 	}
 	return fd;
 }
+EXPORT_SYMBOL(ion_share_dma_buf);
 
 struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd)
 {
@@ -1033,6 +1035,7 @@ end:
 	dma_buf_put(dmabuf);
 	return handle;
 }
+EXPORT_SYMBOL(ion_import_dma_buf);
 
 static int ion_sync_for_device(struct ion_client *client, int fd)
 {
