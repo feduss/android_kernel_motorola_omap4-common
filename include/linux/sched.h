@@ -1331,6 +1331,12 @@ struct task_struct {
 				 * execve */
 	unsigned in_iowait:1;
 
+<<<<<<< HEAD
+=======
+	/* task may not gain privileges */
+	unsigned no_new_privs:1;
+
+>>>>>>> df4654b4cb0... Add PR_{GET,SET}_NO_NEW_PRIVS to prevent execve from granting privs
 	/* Revert to default priority/policy when forking */
 	unsigned sched_reset_on_fork:1;
 	unsigned sched_contributes_to_load:1;
