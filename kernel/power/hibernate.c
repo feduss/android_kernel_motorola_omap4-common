@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <linux/device.h>
 #include <linux/kmod.h>
+#include <linux/async.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -637,10 +638,6 @@ int hibernate(void)
 	sys_sync();
 	printk("done.\n");
 
-	error = usermodehelper_disable();
-	if (error)
-		goto Exit;
-
 	error = freeze_processes();
 	if (error)
 		goto Free_bitmaps;
@@ -674,7 +671,6 @@ int hibernate(void)
 	freezer_test_done = false;
 
  Free_bitmaps:
-	usermodehelper_enable();
 	free_basic_memory_bitmaps();
  Exit:
 	pm_notifier_call_chain(PM_POST_HIBERNATION);
@@ -781,10 +777,6 @@ static int software_resume(void)
 	if (error)
 		goto close_finish;
 
-	error = usermodehelper_disable();
-	if (error)
-		goto close_finish;
-
 	pr_debug("PM: Preparing processes for restore.\n");
 	error = freeze_processes();
 	if (error) {
@@ -803,7 +795,6 @@ static int software_resume(void)
 	swsusp_free();
 	thaw_processes();
  Done:
-	usermodehelper_enable();
 	free_basic_memory_bitmaps();
  Finish:
 	pm_notifier_call_chain(PM_POST_RESTORE);
