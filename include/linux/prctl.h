@@ -128,7 +128,6 @@
  * arg3 pid of the thread whose timer slack needs to be set
  */
 #define PR_SET_TIMERSLACK_PID 41
-
 #define PR_SET_VMA		0x53564d41
 # define PR_SET_VMA_ANON_NAME		0
 
@@ -163,6 +162,4 @@
 #define PR_GET_CHILD_SUBREAPER 37
 #define PR_SET_VMA		0x53564d41
 # define PR_SET_VMA_ANON_NAME		0
-
->>>>>>> 988640590d7... mm: add a field to store names for private anonymous memory
 #endif /* _LINUX_PRCTL_H */
