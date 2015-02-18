@@ -1189,7 +1189,7 @@ int tf_invoke_client_command(
 			int buffer_fd;
 
 			if (connection->ion_client == NULL) {
-				connection->ion_client = ion_client_create(omap_ion_device,"smc");
+				connection->ion_client = ion_client_create(omap_ion_device,"tf");
 			}
 			if (connection->ion_client == NULL) {
 				dprintk(KERN_ERR "%s(%p): "

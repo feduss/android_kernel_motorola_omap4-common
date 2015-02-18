@@ -581,7 +581,7 @@ static long tf_device_ioctl(struct file *file, unsigned int ioctl_num,
 
 		/* Initialize ION connection */
 		if (connection->ion_client == NULL) {
-			connection->ion_client = ion_client_create(omap_ion_device,"smc");
+			connection->ion_client = ion_client_create(omap_ion_device,"tf");
 		}
 
 		if (connection->ion_client == NULL) {
