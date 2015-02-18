@@ -41,29 +41,50 @@ static size_t omap4_ducati_heap_size;
 static size_t omap4_ion_heap_tiler_mem_size;
 static size_t omap4_ion_heap_nonsec_tiler_mem_size;
 
+#ifdef CONFIG_CMA
+static phys_addr_t omap4_ion_ipu_cma_addr;
+static size_t omap4_ion_ipu_cma_pages_count;
+static struct page* omap4_ion_ipu_cma_pages;
+
+/* See RPMSG_IPC_MEM calculation in arch/arm/plat-omap/omap_rpmsg.c */
+#define CMA_RPMSG_ADDR ((phys_addr_t)0xb3a00000)
+#define CMA_RPMSG_SIZE ((size_t)0x8c000)
+
+static phys_addr_t omap4_ion_rpmsg_cma_addr;
+static size_t omap4_ion_rpmsg_cma_pages_count;
+static struct page* omap4_ion_rpmsg_cma_pages;
+#endif
+
+static struct ion_platform_heap omap4_ion_heaps[] = {
+	{
+		.type = ION_HEAP_TYPE_CARVEOUT,
+		.id = OMAP_ION_HEAP_SECURE_INPUT,
+		.name = "secure_input",
+	},
+	{	.type = OMAP_ION_HEAP_TYPE_TILER,
+		.id = OMAP_ION_HEAP_TILER,
+		.name = "tiler",
+	},
+	{
+		.type = OMAP_ION_HEAP_TYPE_TILER,
+		.id = OMAP_ION_HEAP_NONSECURE_TILER,
+		.name = "nonsecure_tiler",
+	},
+	{
+		.type = ION_HEAP_TYPE_SYSTEM,
+		.id = OMAP_ION_HEAP_SYSTEM,
+		.name = "system",
+	},
+	{
+		.type = OMAP_ION_HEAP_TYPE_TILER_RESERVATION,
+		.id = OMAP_ION_HEAP_TILER_RESERVATION,
+		.name = "tiler_reservation",
+	},
+};
+
 static struct ion_platform_data omap4_ion_data = {
 	.nr = 5,
-	.heaps = {
-		{
-			.type = ION_HEAP_TYPE_CARVEOUT,
-			.id = OMAP_ION_HEAP_SECURE_INPUT,
-			.name = "secure_input",
-		},
-		{	.type = OMAP_ION_HEAP_TYPE_TILER,
-			.id = OMAP_ION_HEAP_TILER,
-			.name = "tiler",
-		},
-		{
-			.type = OMAP_ION_HEAP_TYPE_TILER,
-			.id = OMAP_ION_HEAP_NONSECURE_TILER,
-			.name = "nonsecure_tiler",
-		},
-		{
-			.type = ION_HEAP_TYPE_SYSTEM,
-			.id = OMAP_ION_HEAP_SYSTEM,
-			.name = "system",
-		}
-	},
+	.heaps = omap4_ion_heaps,
 };
 
 static struct omap_ion_platform_data omap4_ion_pdata = {
