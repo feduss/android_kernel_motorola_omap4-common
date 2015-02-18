@@ -135,6 +135,133 @@ static int _rpmsg_pa_to_da(u32 pa, u32 *da)
 	return ret;
 }
 
+#else
+static int _rpmsg_pa_to_da(struct rpmsg_omx_instance *omx, u32 pa, u32 *da)
+{
+	int ret;
+	struct rproc *rproc;
+	u64 temp_da;
+
+	if (mutex_lock_interruptible(&omx->omxserv->lock))
+		return -EINTR;
+
+	rproc = rpmsg_get_rproc_handle(omx->omxserv->rpdev);
+
+	ret = rproc_pa_to_da(rproc, (phys_addr_t) pa, &temp_da);
+	if (ret)
+		pr_err("error with pa to da from rproc %d\n", ret);
+	else
+		/* we know it is a 32 bit address */
+		*da = (u32)temp_da;
+
+	mutex_unlock(&omx->omxserv->lock);
+
+	return ret;
+}
+#endif
+
+#if defined(CONFIG_ION_OMAP) && !defined(CONFIG_MACH_TUNA)
+static void _rpmsg_buffer_update_page_list(struct rpmsg_omx_instance *omx,
+					   struct rpmsg_buffer *buffer)
+{
+	struct scatterlist *sg;
+	struct sg_table *sglist;
+	int n_pages;
+	int i;
+
+	if (buffer->page_list)
+		return;
+
+	sglist = ion_sg_table(omx->ion_client, buffer->ion_handle);
+	if (sglist == NULL) {
+		dev_warn(omx->omxserv->dev,
+			 "%s: failed to get scatter/gather list for ion "
+			 "buffer\n", __func__);
+		return;
+	}
+
+	/* get number of pages */
+	for_each_sg(sglist->sgl, sg, INT_MAX, n_pages) {
+		if (!sg)
+			break;
+	}
+
+	buffer->n_pages = n_pages;
+	buffer->page_list = dma_alloc_coherent(NULL,
+					       sizeof(phys_addr_t) * n_pages,
+					       &buffer->page_list_pa,
+					       GFP_KERNEL);
+	if (buffer->page_list == NULL) {
+		dev_warn(omx->omxserv->dev,
+			 "%s: failed to allocate page list\n", __func__);
+		return;
+	}
+
+	for_each_sg(sglist->sgl, sg, n_pages, i)
+		buffer->page_list[i] = sg_phys(sg);
+
+	wmb();
+}
+
+static bool _rpmsg_buffer_validate(struct rpmsg_omx_instance *omx,
+				   void *handle)
+{
+	struct list_head *pos;
+	list_for_each(pos, &omx->buffer_list) {
+		if (pos == handle)
+			return true;
+	}
+	return false;
+}
+
+static inline bool _is_page_list(struct rpmsg_omx_instance *omx,
+				 struct ion_handle *ion_handle)
+{
+	ion_phys_addr_t pa;
+	size_t size;
+
+	/* if ion_phys fails, we assume it is a page_list buffer
+	 * TODO: enhance system heap ion to pass page_list pointer
+	 *       in ion_phys */
+	if (ion_phys(omx->ion_client, ion_handle, &pa, &size))
+		return true;
+
+	return false;
+}
+
+static struct rpmsg_buffer *_rpmsg_buffer_new(struct rpmsg_omx_instance *omx,
+					      struct ion_handle *ion_handle)
+{
+	struct rpmsg_buffer *buf;
+
+	buf = kzalloc(sizeof(struct rpmsg_buffer), GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->ion_handle = ion_handle;
+
+	/* rpmsg_buffer is used ONLY to encapsulate page_list buffers */
+	_rpmsg_buffer_update_page_list(omx, buf);
+
+	list_add(&buf->next, &omx->buffer_list);
+
+	return buf;
+}
+
+static void
+_rpmsg_buffer_free(struct rpmsg_omx_instance *omx, struct rpmsg_buffer *buffer)
+{
+	if (buffer->page_list) {
+		dma_free_coherent(NULL, sizeof(phys_addr_t) * buffer->n_pages,
+				  buffer->page_list, buffer->page_list_pa);
+	}
+	if (buffer->ion_handle)
+		ion_free(omx->ion_client, buffer->ion_handle);
+	list_del(&buffer->next);
+	kfree(buffer);
+}
+#endif
+
 static int _rpmsg_omx_buffer_lookup(struct rpmsg_omx_instance *omx,
 					long buffer, u32 *va)
 {
@@ -358,7 +485,7 @@ long rpmsg_omx_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				_IOC_NR(cmd), ret);
 			return -EFAULT;
 		}
-		data.handle = ion_import_fd(omx->ion_client, data.fd);
+		data.handle = ion_import_dma_buf(omx->ion_client, data.fd);
 		if (IS_ERR_OR_NULL(data.handle))
 			data.handle = NULL;
 		if (copy_to_user((char __user *) arg, &data, sizeof(data))) {
