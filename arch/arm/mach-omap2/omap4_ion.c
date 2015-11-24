@@ -42,7 +42,7 @@ static size_t omap4_ion_heap_tiler_mem_size;
 static size_t omap4_ion_heap_nonsec_tiler_mem_size;
 
 static struct ion_platform_data omap4_ion_data = {
-	.nr = 4,
+	.nr = 5,
 	.heaps = {
 		{
 			.type = ION_HEAP_TYPE_CARVEOUT,
@@ -100,40 +100,42 @@ void __init omap_ion_init(void)
 
 	if (system_512m) {
 		omap4_ion_heap_secure_input_size = 0;
-		omap4_ducati_heap_size = (SZ_1M * 55);
+		omap4_ducati_heap_size = (SZ_1M * 83);
 		omap4_ion_heap_nonsec_tiler_mem_size = 0;
 		omap4_ion_heap_tiler_mem_size = 0;
-        } else {
-                omap4_ion_heap_secure_input_size = (SZ_1M * 20);
-                omap4_ducati_heap_size = (SZ_1M * 128);
-                /* Reducing carveout sizes used by ION. The expectation is
-                 * the memory will be dynamically allocated for tiler
-                 * instead of being carveout at start
-                 */
-                omap4_ion_heap_nonsec_tiler_mem_size = SZ_4K;
-                omap4_ion_heap_tiler_mem_size = SZ_4K;
-        }
+	} else {
+		omap4_ducati_heap_size = omap4_ion_pdata.ducati_heap_size;
+#ifdef CONFIG_ION_OMAP_TILER_DYNAMIC_ALLOC
+		omap4_ion_heap_secure_input_size = 0;
+		omap4_ion_heap_nonsec_tiler_mem_size = 0;
+		omap4_ion_heap_tiler_mem_size = 0;
+#else
+		omap4_ion_heap_secure_input_size = omap4_ion_pdata.tiler1d_size;
+		omap4_ion_heap_nonsec_tiler_mem_size =
+				omap4_ion_pdata.nonsecure_tiler2d_size;
+		omap4_ion_heap_tiler_mem_size = omap4_ion_pdata.tiler2d_size;
+#endif
+	}
 
 	/* carveout addresses */
-	if (system_512m) {
-		omap4_ducati_heap_addr = PLAT_PHYS_OFFSET + omap_total_ram_size() - omap4_ducati_heap_size;
-		omap4_smc_addr = omap4_ducati_heap_addr - omap4_smc_size;
-		omap4_ion_heap_secure_input_addr = omap4_smc_addr - omap4_ion_heap_secure_input_size;
-		omap4_ion_heap_tiler_mem_addr = omap4_ion_heap_secure_input_addr - omap4_ion_heap_tiler_mem_size;
-		omap4_ion_heap_nonsec_tiler_mem_addr = omap4_ion_heap_tiler_mem_addr -
-					omap4_ion_heap_nonsec_tiler_mem_size;
-	} else {
-		omap4_smc_addr = PLAT_PHYS_OFFSET + omap_total_ram_size() -
-					omap4_smc_size;
-		omap4_ion_heap_secure_input_addr = omap4_smc_addr -
-					omap4_ion_heap_secure_input_size;
-		omap4_ducati_heap_addr = omap4_ion_heap_secure_input_addr -
-					omap4_ducati_heap_size;
-		omap4_ion_heap_tiler_mem_addr = omap4_ducati_heap_addr -
-					omap4_ion_heap_tiler_mem_size;
-		omap4_ion_heap_nonsec_tiler_mem_addr = omap4_ion_heap_tiler_mem_addr -
-					omap4_ion_heap_nonsec_tiler_mem_size;
-	}
+	omap4_smc_addr = PLAT_PHYS_OFFSET + omap_total_ram_size() -
+				omap4_smc_size;
+#ifdef CONFIG_MACH_TUNA /* fixed start address of ducati heap */
+	omap4_ion_heap_secure_input_addr = TUNA_DUCATI_HEAP_ADDR;
+#else
+	omap4_ion_heap_secure_input_addr = omap4_smc_addr -
+				omap4_ion_heap_secure_input_size;
+#endif
+#ifdef CONFIG_MACH_OMAP4_ESPRESSO
+	omap4_ducati_heap_addr = ESPRESSO_DUCATI_HEAP_ADDR;
+#else
+	omap4_ducati_heap_addr = omap4_ion_heap_secure_input_addr -
+				omap4_ducati_heap_size;
+#endif
+	omap4_ion_heap_tiler_mem_addr = omap4_ducati_heap_addr -
+				omap4_ion_heap_tiler_mem_size;
+	omap4_ion_heap_nonsec_tiler_mem_addr = omap4_ion_heap_tiler_mem_addr -
+				omap4_ion_heap_nonsec_tiler_mem_size;
 
 	pr_info("omap4_total_ram_size = 0x%x\n" \
 				"omap4_smc_size = 0x%x\n"  \
@@ -159,6 +161,35 @@ void __init omap_ion_init(void)
 				omap4_ion_heap_tiler_mem_addr,
 				omap4_ion_heap_nonsec_tiler_mem_addr);
 
+#ifdef CONFIG_CMA
+	ipu_cma_pages_count = (omap4_ion_heap_secure_input_size +
+				omap4_ducati_heap_size +
+				omap4_ion_heap_nonsec_tiler_mem_size +
+				omap4_ion_heap_tiler_mem_size) / PAGE_SIZE;
+
+	cma_area_addr = round_down(omap4_ion_heap_nonsec_tiler_mem_addr, cma_alignment);
+	cma_area_size = round_up(ipu_cma_pages_count * PAGE_SIZE, cma_alignment);
+
+	pr_info("Reserving CMA IPU + RPMSG region at address = 0x%x with size = 0x%x\n",
+		cma_area_addr, cma_area_size);
+	dma_declare_contiguous(&omap4_ion_device.dev, cma_area_size, cma_area_addr, 0);
+
+	/* We need to separate RPMSG memory region from the overall Ducati range
+	 * as it has to remain allocated even when the rest of Ducati is unloaded.
+	 * Therefore, IPU carveout area is split into two pieces - below and above
+	 * RPMSG region. */
+	omap4_ion_ipu_cma_addr = CMA_RPMSG_ADDR + CMA_RPMSG_SIZE;
+	omap4_ion_ipu_cma_pages_count = ipu_cma_pages_count - CMA_RPMSG_SIZE / PAGE_SIZE;
+
+	omap4_ion_rpmsg_cma_addr = CMA_RPMSG_ADDR;
+	omap4_ion_rpmsg_cma_pages_count = CMA_RPMSG_SIZE / PAGE_SIZE;
+
+	pr_info("CMA RPMSG region: address = 0x%x, size = 0x%lx\n", omap4_ion_rpmsg_cma_addr, omap4_ion_rpmsg_cma_pages_count * PAGE_SIZE);
+	pr_info("CMA IPU region: address = 0x%x, size = 0x%lx\n", omap4_ion_ipu_cma_addr, omap4_ion_ipu_cma_pages_count * PAGE_SIZE);
+
+	omap4_ion_ipu_cma_pages = NULL;
+	omap4_ion_rpmsg_cma_pages = NULL;
+#endif
 	for (i = 0; i < omap4_ion_data.nr; i++) {
 		struct ion_platform_heap *h = &omap4_ion_data.heaps[i];
 
@@ -186,14 +217,10 @@ void __init omap_ion_init(void)
 	for (i = 0; i < omap4_ion_data.nr; i++)
 		if (omap4_ion_data.heaps[i].type == ION_HEAP_TYPE_CARVEOUT ||
 		    omap4_ion_data.heaps[i].type == OMAP_ION_HEAP_TYPE_TILER) {
+#ifndef CONFIG_CMA
 			ret = memblock_remove(omap4_ion_data.heaps[i].base,
 					      omap4_ion_data.heaps[i].size);
-
-			pr_debug("%s: ion_heap[%d] name=%s, size=%dMB, addr=0x%lx\n",
-				__func__, i, omap4_ion_data.heaps[i].name,
-				(omap4_ion_data.heaps[i].size >> 20),
-				omap4_ion_data.heaps[i].base);
-
+#endif
 			if (!omap4_ion_data.heaps[i].size)
 				continue;
 			if (ret)
