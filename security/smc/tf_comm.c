@@ -1222,7 +1222,7 @@ static int tf_send_recv(struct tf_comm *comm,
 
 #ifdef CONFIG_FREEZER
 	saved_flags = current->flags;
-	current->flags |= PF_FREEZER_NOSIG;
+	//current->flags |= PF_FREEZER_NOSIG;
 #endif
 
 	/*
@@ -1239,13 +1239,13 @@ copy_answers:
 	wake_up(&(comm->wait_queue));
 
 #ifdef CONFIG_FREEZER
-	if (unlikely(freezing(current))) {
+	if (unlikely(!try_to_freeze())) {
 
 		dprintk(KERN_INFO
-			"Entering refrigerator.\n");
-		refrigerator();
+			"Entering try_to_freeze.\n");
+		try_to_freeze();
 		dprintk(KERN_INFO
-			"Left refrigerator.\n");
+			"Left try_to_freeze.\n");
 		goto copy_answers;
 	}
 #endif
@@ -1394,8 +1394,8 @@ exit:
 	}
 
 #ifdef CONFIG_FREEZER
-	current->flags &= ~(PF_FREEZER_NOSIG);
-	current->flags |= (saved_flags & PF_FREEZER_NOSIG);
+	//current->flags &= ~(PF_FREEZER_NOSIG);
+	current->flags |= (saved_flags);// & PF_FREEZER_NOSIG);
 #endif
 
 	return result;
