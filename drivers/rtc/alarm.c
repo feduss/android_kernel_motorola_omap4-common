@@ -326,11 +326,11 @@ err:
 }
 
 /**
- * alarm_get_elapsed_realtime - get the elapsed real time in ktime_t format
+ * get_monotonic_boottime - get the elapsed real time in ktime_t format
  *
  * returns the time in ktime_t format
  */
-ktime_t alarm_get_elapsed_realtime(void)
+ktime_t get_monotonic_boottime(void)
 {
 	ktime_t now;
 	unsigned long flags;
