@@ -151,6 +151,7 @@
 # define PR_CAP_AMBIENT_RAISE		2
 # define PR_CAP_AMBIENT_LOWER		3
 # define PR_CAP_AMBIENT_CLEAR_ALL	4
+ /*
  * Set specific pid that is allowed to ptrace the current task.
  * A value of 0 mean "no process".
  */
