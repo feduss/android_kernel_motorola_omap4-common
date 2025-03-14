@@ -89,11 +89,9 @@ struct ion_platform_data {
 /**
  * ion_client_create() -  allocate a client and returns it
  * @dev:	the global ion device
- * @heap_mask:	mask of heaps this client can allocate from
  * @name:	used for debugging
  */
-struct ion_client *ion_client_create(struct ion_device *dev,
-				     unsigned int heap_mask, const char *name);
+struct ion_client *ion_client_create(struct ion_device *dev, const char *name);
 
 /**
  * ion_client_destroy() -  free's a client and all it's handles
