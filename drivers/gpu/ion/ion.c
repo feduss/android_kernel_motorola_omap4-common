@@ -650,9 +650,7 @@ static struct ion_client *ion_client_lookup(struct ion_device *dev,
 	return NULL;
 }
 
-struct ion_client *ion_client_create(struct ion_device *dev,
-				     unsigned int heap_mask,
-				     const char *name)
+struct ion_client *ion_client_create(struct ion_device *dev, const char *name)
 {
 	struct ion_client *client;
 	struct task_struct *task;
@@ -695,7 +693,6 @@ struct ion_client *ion_client_create(struct ion_device *dev,
 	client->handles = RB_ROOT;
 	mutex_init(&client->lock);
 	client->name = name;
-	client->heap_mask = heap_mask;
 	client->task = task;
 	client->pid = pid;
 	kref_init(&client->ref);
@@ -1148,7 +1145,7 @@ static int ion_open(struct inode *inode, struct file *file)
 	struct ion_client *client;
 
 	pr_debug("%s: %d\n", __func__, __LINE__);
-	client = ion_client_create(dev, -1, "user");
+	client = ion_client_create(dev, "user");
 	if (IS_ERR_OR_NULL(client))
 		return PTR_ERR(client);
 	file->private_data = client;

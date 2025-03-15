@@ -581,14 +581,7 @@ static long tf_device_ioctl(struct file *file, unsigned int ioctl_num,
 
 		/* Initialize ION connection */
 		if (connection->ion_client == NULL) {
-			connection->ion_client = ion_client_create(
-<<<<<<< HEAD
-						omap_ion_device,
-						(1 << ION_HEAP_TYPE_CARVEOUT),
-						"smc");
-=======
-						zebra_ion_device, "tf");
->>>>>>> 1f59b6103fa (Remove heapmask from ion_client_create() call)
+			connection->ion_client = ion_client_create(omap_ion_device,"smc");
 		}
 
 		if (connection->ion_client == NULL) {
